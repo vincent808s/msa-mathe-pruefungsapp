@@ -316,7 +316,7 @@
       </div>
       <div id="reviewSummary"></div>
       <div id="tasks"></div>
-      <p class="footer-note">Inhalte nach Serlo.org, Quellen in den Jahrgängen verlinkt. Serlo-Inhalte stehen unter CC BY-SA 4.0; einzelne originale Prüfungsaufgaben können abweichende Hinweise tragen. Generiert am 2026-04-26T17:29:05.175Z.</p>
+      <p class="footer-note">Inhalte nach Serlo.org, Quellen in den Jahrgängen verlinkt. Serlo-Inhalte stehen unter CC BY-SA 4.0; einzelne originale Prüfungsaufgaben können abweichende Hinweise tragen. Generiert am 2026-04-26T17:32:37.289Z.</p>
     </section>
   </main>
   <script>
@@ -580,6 +580,7 @@
           taskCounter += 1;
           const k = keyFor(task);
           const entry = state[k] || {};
+          const hasChoices = Boolean(choiceSpec(task));
           const photoHtml = entry.photo
             ? '<div class="photo-preview"><img src="' + entry.photo + '" alt="Dein Foto"><div><strong>Foto angehängt</strong><br><button data-remove-photo="' + k + '">Foto entfernen</button></div></div>'
             : '<span class="status">Noch kein Foto angehängt.</span>';
@@ -587,7 +588,7 @@
             '<h3>' + taskCounter + '. ' + group.title + '</h3>' +
             '<div class="task-content">' + task.contentHtml + '</div>' +
             renderChoiceBox(task, entry, k) +
-            '<label><strong>Deine Antwort</strong><textarea data-answer="' + k + '" placeholder="Rechnung, Ergebnis oder Begründung eingeben...">' + (entry.answer || "") + '</textarea></label>' +
+            (hasChoices ? '' : '<label><strong>Deine Antwort</strong><textarea data-answer="' + k + '" placeholder="Rechnung, Ergebnis oder Begründung eingeben...">' + (entry.answer || "") + '</textarea></label>') +
             '<div class="photo-box">' +
               '<strong>Rechenweg als Foto</strong>' +
               '<div class="status">Für Aufgaben mit Skizze oder langer Rechnung: Foto/Scan auswählen. Auf dem iPhone vorher fotografieren oder am Mac über den Datei-Dialog/Continuity Camera einfügen.</div>' +
