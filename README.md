@@ -30,5 +30,5 @@ Die Aufgaben und Musterlösungen basieren auf Inhalten von Serlo.org:
 - https://de.serlo.org/mathe/326300/pruefungsaufgaben-mathematik-2025
 - https://de.serlo.org/mathe/313540/pruefungsaufgaben-mathematik-2024
 - https://de.serlo.org/mathe/305828/pruefungsaufgaben-mathematik-2023
-
+- github.com/serlo
 Serlo-Inhalte stehen unter CC BY-SA 4.0, soweit dort nicht anders angegeben.
