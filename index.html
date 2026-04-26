@@ -316,7 +316,7 @@
       </div>
       <div id="reviewSummary"></div>
       <div id="tasks"></div>
-      <p class="footer-note">Inhalte nach Serlo.org, Quellen in den Jahrgängen verlinkt. Serlo-Inhalte stehen unter CC BY-SA 4.0; einzelne originale Prüfungsaufgaben können abweichende Hinweise tragen. Generiert am 2026-04-26T17:32:37.289Z.</p>
+      <p class="footer-note">Inhalte nach Serlo.org, Quellen in den Jahrgängen verlinkt. Serlo-Inhalte stehen unter CC BY-SA 4.0; einzelne originale Prüfungsaufgaben können abweichende Hinweise tragen. Generiert am 2026-04-26T18:13:26.534Z.</p>
     </section>
   </main>
   <script>
@@ -492,7 +492,7 @@
 
     function renderGroups(exam) {
       byId("groupList").innerHTML = exam.groups.map((group, index) =>
-        '<button class="group-button" data-target="group-' + index + '">' + group.title + '<br><span class="status">' + group.exercises.length + ' Aufgaben</span></button>'
+        '<button class="group-button" data-target="group-' + index + '">' + groupNavTitle(group.title) + '<br><span class="status">' + group.exercises.length + ' Aufgaben</span></button>'
       ).join("");
       document.querySelectorAll("[data-target]").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -500,6 +500,33 @@
           if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
         });
       });
+    }
+
+    function cleanLatexText(value) {
+      return String(value || "")
+        .replace(/\\overline\{([^{}]+)\}/g, "$1")
+        .replace(/\\mathrm\{~?([^{}]+)\}/g, "$1")
+        .replace(/\\text\{([^{}]+)\}/g, "$1")
+        .replace(/\\cm/g, " cm")
+        .replace(/\\€/g, "€")
+        .replace(/\\mid/g, "|")
+        .replace(/[{}]/g, "")
+        .replace(/\\\\/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function groupNavTitle(title) {
+      const clean = cleanLatexText(title);
+      if (/Drachenviereck/i.test(clean)) return 'Drachenviereck<br><span class="status">AC = 50 cm · BD = 80 cm</span>';
+      if (/Zahlenscheiben/i.test(clean)) return 'Zahlenscheiben<br><span class="status">Drehscheiben und Wahrscheinlichkeiten</span>';
+      if (/Rampe/i.test(clean)) return 'Rampe<br><span class="status">Rollstuhlzugang</span>';
+      if (/Bakterien/i.test(clean)) return 'Bakterien<br><span class="status">Exponentielles Wachstum</span>';
+      if (/Weltbevölkerung/i.test(clean)) return 'Weltbevölkerung';
+      if (/Konservendose/i.test(clean)) return 'Konservendose';
+      if (/Umzug/i.test(clean)) return 'Umzug';
+      if (/Dreiecke/i.test(clean)) return 'Dreiecke';
+      return clean.length > 62 ? clean.slice(0, 59) + "..." : clean;
     }
 
     function taskPlainText(task) {
