@@ -112,6 +112,7 @@
     .year-list, .group-list { display: grid; gap: 8px; margin-top: 12px; }
     .year-button, .group-button { text-align: left; width: 100%; }
     .year-button.active, .group-button.active { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+    .group-button.active { background: #e9f5f3; }
     .exam-head {
       background: var(--paper);
       border: 1px solid var(--line);
@@ -131,6 +132,14 @@
       padding: 18px;
       margin-bottom: 16px;
       scroll-margin-top: 108px;
+      transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+    }
+    .task.answered {
+      border-color: rgba(23,107,58,.45);
+      background: #fbfffc;
+    }
+    .task.saved-pulse {
+      box-shadow: 0 0 0 3px rgba(23,107,58,.16), var(--shadow);
     }
     .task h3 { margin: 0 0 12px; font-size: 18px; }
     .task-content h2, .task-content h3 { font-size: 17px; margin: 16px 0 8px; }
@@ -164,6 +173,39 @@
       align-items: center;
       margin-top: 10px;
     }
+    .choice-box {
+      margin: 12px 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+    }
+    .choice-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .choice-grid label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: var(--paper);
+      cursor: pointer;
+    }
+    .choice-grid label:has(input:checked) {
+      border-color: var(--accent);
+      background: #e9f5f3;
+    }
+    .save-badge {
+      display: none;
+      color: var(--ok);
+      font-weight: 700;
+    }
+    .save-badge.visible { display: inline; }
     .photo-box {
       margin-top: 12px;
       padding: 12px;
@@ -242,7 +284,6 @@
         <p class="sub">Berlin eBBR/MSA · erst auswählen, dann schreiben, am Ende korrigieren.</p>
       </div>
       <div class="actions hidden" id="examActions">
-        <select id="yearSelect" aria-label="Jahrgang wählen"></select>
         <button id="finishExam" class="primary">Prüfung abgeben</button>
         <button id="backToStart">Prüfung wechseln</button>
         <button id="resetAnswers" class="danger">Antworten leeren</button>
@@ -265,8 +306,6 @@
       <strong>Fortschritt</strong>
       <div class="meter"><span id="progressBar"></span></div>
       <div id="progressText" class="status">0 von 0 beantwortet</div>
-      <div class="year-list" id="yearList"></div>
-      <hr>
       <strong>Aufgabenteile</strong>
       <div class="group-list" id="groupList"></div>
     </aside>
@@ -277,7 +316,7 @@
       </div>
       <div id="reviewSummary"></div>
       <div id="tasks"></div>
-      <p class="footer-note">Inhalte nach Serlo.org, Quellen in den Jahrgängen verlinkt. Serlo-Inhalte stehen unter CC BY-SA 4.0; einzelne originale Prüfungsaufgaben können abweichende Hinweise tragen. Generiert am 2026-04-26T16:07:42.910Z.</p>
+      <p class="footer-note">Inhalte nach Serlo.org, Quellen in den Jahrgängen verlinkt. Serlo-Inhalte stehen unter CC BY-SA 4.0; einzelne originale Prüfungsaufgaben können abweichende Hinweise tragen. Generiert am 2026-04-26T17:18:28.804Z.</p>
     </section>
   </main>
   <script>
@@ -313,7 +352,7 @@
     }
 
     function isAnswered(entry) {
-      return Boolean((entry?.answer || "").trim() || entry?.photo);
+      return Boolean((entry?.answer || "").trim() || entry?.choice || entry?.photo);
     }
 
     function classifyTask(exam, task) {
@@ -328,21 +367,7 @@
       return exam.year + " · " + exam.exercises.length + " Aufgaben";
     }
 
-    function renderChrome() {
-      byId("yearSelect").innerHTML = DATA.map((exam) => '<option value="' + exam.year + '">' + exam.year + '</option>').join("");
-      byId("yearSelect").value = currentYear;
-      byId("yearList").innerHTML = DATA.map((exam) =>
-        '<button class="year-button' + (exam.year === currentYear ? ' active' : '') + '" data-year="' + exam.year + '">' +
-        '<strong>' + exam.year + '</strong><br><span class="status">' + exam.exercises.length + ' Aufgaben</span></button>'
-      ).join("");
-      document.querySelectorAll("[data-year]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          currentYear = Number(btn.dataset.year);
-          mode = "exam";
-          render();
-        });
-      });
-    }
+    function renderChrome() {}
 
     function renderStart() {
       byId("examCards").innerHTML = DATA.map((exam) =>
@@ -370,6 +395,64 @@
       });
     }
 
+    function taskPlainText(task) {
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = task.contentHtml || "";
+      return wrapper.textContent || "";
+    }
+
+    function wantsChoice(task) {
+      return /kreuzen|kreuz|wählen sie|wähle|entscheiden sie|ordnen sie zu/i.test(taskPlainText(task));
+    }
+
+    function renderChoiceBox(task, entry, k) {
+      if (!wantsChoice(task)) return "";
+      const text = taskPlainText(task).toLowerCase();
+      const values = text.includes("wahr") && text.includes("falsch")
+        ? ["Wahr", "Falsch"]
+        : ["A", "B", "C", "D"];
+      return '<div class="choice-box"><strong>Ankreuzantwort</strong><div class="status">Wenn die Auswahlmöglichkeiten im Bild stehen, kreuze hier den passenden Buchstaben an.</div><div class="choice-grid">' +
+        values.map((value) => '<label><input type="radio" name="choice-' + k + '" data-choice="' + k + '" value="' + value + '"' + (entry.choice === value ? ' checked' : '') + '> ' + value + '</label>').join("") +
+      '</div></div>';
+    }
+
+    function updateTaskVisual(k) {
+      const article = document.querySelector('[data-task-key="' + CSS.escape(k) + '"]');
+      if (!article) return;
+      const entry = state[k] || {};
+      article.classList.toggle("answered", isAnswered(entry));
+      const status = byId("status-" + k);
+      if (status) status.textContent = isAnswered(entry) ? "gespeichert" : "noch offen";
+    }
+
+    function flashSaved(k) {
+      const article = document.querySelector('[data-task-key="' + CSS.escape(k) + '"]');
+      const badge = byId("badge-" + k);
+      if (!article || !badge) return;
+      article.classList.add("saved-pulse");
+      badge.classList.add("visible");
+      badge.textContent = "Gespeichert";
+      window.setTimeout(() => {
+        article.classList.remove("saved-pulse");
+        badge.classList.remove("visible");
+      }, 1200);
+    }
+
+    let groupObserver;
+    function setupScrollSpy() {
+      if (groupObserver) groupObserver.disconnect();
+      const buttons = Array.from(document.querySelectorAll(".group-button"));
+      groupObserver = new IntersectionObserver((entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (!visible) return;
+        const group = visible.target.dataset.group;
+        buttons.forEach((button) => button.classList.toggle("active", button.dataset.target === "group-" + group));
+      }, { rootMargin: "-120px 0px -65% 0px", threshold: 0.01 });
+      document.querySelectorAll("[data-group]").forEach((article) => groupObserver.observe(article));
+    }
+
     function renderTasks(exam) {
       let html = "";
       let taskCounter = 0;
@@ -381,9 +464,10 @@
           const photoHtml = entry.photo
             ? '<div class="photo-preview"><img src="' + entry.photo + '" alt="Dein Foto"><div><strong>Foto angehängt</strong><br><button data-remove-photo="' + k + '">Foto entfernen</button></div></div>'
             : '<span class="status">Noch kein Foto angehängt.</span>';
-          html += '<article class="task" id="' + (localIndex === 0 ? 'group-' + groupIndex : 'task-' + taskCounter) + '">' +
+          html += '<article class="task' + (isAnswered(entry) ? ' answered' : '') + '" data-task-key="' + k + '" data-group="' + groupIndex + '" id="' + (localIndex === 0 ? 'group-' + groupIndex : 'task-' + taskCounter) + '">' +
             '<h3>' + taskCounter + '. ' + group.title + '</h3>' +
             '<div class="task-content">' + task.contentHtml + '</div>' +
+            renderChoiceBox(task, entry, k) +
             '<label><strong>Deine Antwort</strong><textarea data-answer="' + k + '" placeholder="Rechnung, Ergebnis oder Begründung eingeben...">' + (entry.answer || "") + '</textarea></label>' +
             '<div class="photo-box">' +
               '<strong>Rechenweg als Foto</strong>' +
@@ -395,8 +479,9 @@
               '<button data-save="' + k + '">Antwort speichern</button>' +
               (mode === "review" ? '<button data-toggle="' + k + '">Musterlösung anzeigen/verbergen</button>' : '') +
               '<span class="status" id="status-' + k + '">' + (entry.answer ? 'gespeichert' : 'noch offen') + '</span>' +
+              '<span class="save-badge" id="badge-' + k + '"></span>' +
             '</div>' +
-            '<div class="solution' + (mode === "review" || entry.open ? ' open' : '') + '" id="solution-' + k + '">' +
+            '<div class="solution' + (mode === "review" ? ' open' : '') + '" id="solution-' + k + '">' +
               '<div class="checkline" id="check-' + k + '"></div>' +
               '<strong>Musterlösung</strong>' +
               '<div>' + (task.solutionHtml || '<p>Keine Musterlösung gefunden.</p>') + '</div>' +
@@ -411,6 +496,7 @@
       });
       byId("tasks").innerHTML = html;
       attachTaskEvents(exam);
+      setupScrollSpy();
     }
 
     function attachTaskEvents(exam) {
@@ -419,7 +505,16 @@
           const k = area.dataset.answer;
           state[k] = { ...(state[k] || {}), answer: area.value };
           saveState();
-          byId("status-" + k).textContent = area.value.trim() ? "gespeichert" : "noch offen";
+          updateTaskVisual(k);
+        });
+      });
+      document.querySelectorAll("[data-choice]").forEach((input) => {
+        input.addEventListener("change", () => {
+          const k = input.dataset.choice;
+          state[k] = { ...(state[k] || {}), choice: input.value };
+          saveState();
+          updateTaskVisual(k);
+          flashSaved(k);
         });
       });
       document.querySelectorAll("[data-photo]").forEach((input) => {
@@ -432,6 +527,7 @@
             state[k] = { ...(state[k] || {}), photo: dataUrl, photoName: file.name };
             saveState();
             renderTasks(exam);
+            flashSaved(k);
           } catch (error) {
             alert("Das Foto konnte nicht gespeichert werden. Versuch bitte ein kleineres Bild oder einen Screenshot.");
           }
@@ -446,7 +542,11 @@
         });
       });
       document.querySelectorAll("[data-save]").forEach((btn) => {
-        btn.addEventListener("click", () => saveState());
+        btn.addEventListener("click", () => {
+          saveState();
+          updateTaskVisual(btn.dataset.save);
+          flashSaved(btn.dataset.save);
+        });
       });
       document.querySelectorAll("[data-toggle]").forEach((btn) => {
         btn.addEventListener("click", () => {
@@ -496,7 +596,7 @@
       const entry = state[k] || {};
       const line = byId("check-" + k);
       if (!line || !task) return;
-      const answer = entry.answer || "";
+      const answer = [entry.choice, entry.answer].filter(Boolean).join(" ");
       line.className = "checkline";
       if (!answer.trim() && !entry.photo) {
         line.classList.add("miss");
@@ -572,11 +672,6 @@
       updateProgress();
     }
 
-    byId("yearSelect").addEventListener("change", (event) => {
-      currentYear = Number(event.target.value);
-      mode = "exam";
-      render();
-    });
     byId("startExam").addEventListener("click", () => {
       mode = "exam";
       render();
